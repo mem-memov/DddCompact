@@ -1,19 +1,95 @@
 <?php
 class DddCompact_Application {
-    
+
     public function makeDomain(
         $pathToDirectory, 
         DddCompact_Store_Interface $store = null, 
         DddCompact_Service_Interface $service = null
     ) {
         
-        return new DddCompact_Domain($pathToDirectory, $store, $service);
+        $fileSystem = new DddCompact_FileSystem($pathToDirectory);
+        $instantiator = new DddCompact_Instantiator($fileSystem, $store, $service);
+
+        return new DddCompact_Domain($instantiator);
+        
+    }
+
+
+    
+}
+class DddCompact_FileSystem {
+    
+    private $pathToDomainDirectory;
+    
+    public function __construct($pathToDomainDirectory) {
+        $this->pathToDomainDirectory = $pathToDomainDirectory;
+        $this->secureFantomDirectories();
+    }
+    
+    public function loadDomainClass($class) {
+        
+        require_once($this->pathToDomainDirectory.'/'.$class.'.php');
+        
+    }
+    
+    private function secureFantomDirectories() {
+        
+        $applicationPath = __DIR__.'/fantom';
+        if (!is_readable($applicationPath)) {
+            mkdir($applicationPath);
+        }
+
+        $domainPath = $applicationPath.'/'.basename($this->pathToDomainDirectory).'_'.md5($this->pathToDomainDirectory);
+        if (!is_readable($domainPath)) {
+            mkdir($domainPath);
+        }
+        
+        $servicePath = $domainPath.'/service';
+        if (!is_readable($servicePath)) {
+            mkdir($servicePath);
+        }
+
+        $storePath = $domainPath.'/store';
+        if (!is_readable($storePath)) {
+            mkdir($storePath);
+        }
+
+    }
+    
+}
+class DddCompact_Instantiator {
+    
+    private $fileSystem;
+    private $store;
+    private $service;
+    
+    public function __construct(
+        DddCompact_FileSystem $fileSystem,
+        DddCompact_Store_Interface $store = null, 
+        DddCompact_Service_Interface $service = null
+    ) {
+        
+        $this->fileSystem = $fileSystem;
+        $this->store = $store;
+        $this->service = $service;
+        
+    }
+    
+    public function instantiateDomainItem($class) {
+        
+        $this->fileSystem->loadDomainClass($class);
+        $core = new DddCompact_Core($class, $this);
+        $item = new $class($core);
+        return array($item, $core);
         
     }
     
 }
 interface DddCompact_Store_Interface {
-    public function fetch($class, $method, $arguments);
+    /*public function create($class, &$record);
+    public function read();
+    public function update($class, $record);
+    public function delete($class, $record);*/
 }
 interface DddCompact_Service_Interface {
     
@@ -23,57 +99,63 @@ class DddCompact_Exception extends Exception {
 }
 class DddCompact_Domain {
     
-    private $pathToDirectory;
-    private $store;
-    private $service;
+    private $instantiator;
     
     public function __construct(
-        $pathToDirectory, 
-        DddCompact_Store_Interface $store = null, 
-        DddCompact_Service_Interface $service = null
+        DddCompact_Instantiator $instantiator
     ) {
-        $this->pathToDirectory = $pathToDirectory;
-        $this->store = $store;
-        $this->service = $service;
+        
+        $this->instantiator = $instantiator;
+        
     }
     
     public function get($class) {
-        require_once($this->pathToDirectory.'/'.$class.'.php');
-        $core = new DddCompact_Core($this->pathToDirectory, $this->store, $this->service);
-        return new $class($core);
+        
+        list($item, $core) = $this->instantiator->instantiateDomainItem($class);
+
+        return $item;
+        
     }
 
 }
+class DddCompact_ServiceManager {
+    
+}
 class DddCompact_Core {
 
-    private $pathToDirectory;
-    private $store;
-    private $service;
+    private $class;
+    private $instantiator;
     
     private $fieldNames;
     private $idFieldName;
     private $collectionNames;
     private $collectionInstances;
+    private $serviceNames;
+    private $serviceInstances;
     
     
     public function __construct(
-        $pathToDirectory, 
-        DddCompact_Store_Interface $store = null, 
-        DddCompact_Service_Interface $service = null
+        $class,
+        DddCompact_Instantiator $instantiator
     ) {
 
-        $this->pathToDirectory = $pathToDirectory;
-        $this->store = $store;
-        $this->service = $service;
+        $this->class = $class;
+        $this->instantiator = $instantiator;
         
         $this->fieldNames = array();
         $this->idFieldName = null;
         $this->collectionNames = array();
         $this->collectionInstances = array();
+        $this->serviceNames = array();
+        $this->serviceInstances = array();
         
     }
     
     public function defineIdField($name) {
+        
+        if (!is_null($this->idFieldName)) {
+            throw new DddCompact_Exception();
+        }
         
         $this->defineField($name);
         $this->idFieldName = $name;
@@ -121,7 +203,15 @@ class DddCompact_Core {
             
         }
         
-        return $record;
+        return array($this->class => $record);
+        
+    }
+    
+    public function idIsSet() {
+        
+        foreach ($this->idFieldNames as $idFieldName) {
+            
+        }
         
     }
     
@@ -134,11 +224,23 @@ class DddCompact_Core {
         $this->collectionNames[] = $name;
         $this->collectionInstances[$name] = new DddCompact_Collection(
             $class, 
-            $this->pathToDirectory, 
-            $this->store,
-            $this->service
+            $this->instantiator
         );
         $this->$name = $this->collectionInstances[$name];
+        
+    }
+    
+    public function defineService($property, $service) {
+        
+        if (in_array($service, $this->serviceNames)) {
+            throw new DddCompact_Exception();
+        }
+
+        $this->serviceNames[] = $property;
+        $this->serviceInstances[$property] = new DddCompact_Collection(
+
+        );
+        $this->$property = $this->serviceInstances[$property];
         
     }
     
@@ -146,24 +248,18 @@ class DddCompact_Core {
 class DddCompact_Collection {
 
     private $class;
-    private $pathToDirectory;
-    private $store;
-    private $service;
+    private $instantiator;
     
     private static $cores;
     private static $items;
 
     public function __construct(
         $class,
-        $pathToDirectory, 
-        DddCompact_Store_Interface $store = null, 
-        DddCompact_Service_Interface $service = null
+        DddCompact_Instantiator $instantiator
     ) {
 
         $this->class = $class;
-        $this->pathToDirectory = $pathToDirectory;
-        $this->store = $store;
-        $this->service = $service;
+        $this->instantiator = $instantiator;
         
         $this->cores = array();
         $this->items = array();
@@ -176,25 +272,46 @@ class DddCompact_Collection {
         
     }
     
-    public function readById($id) {
-
-        $record = $this->store->readById($this->class, $id);
-        return $this->make($record);
-        
+    public function readAll() {
+        $records = $this->store->readAll($this->class);
     }
     
-    public function readByConnectedItem($connectedItem) {
+    public function readById($id) {
+        $record = $this->store->readById($this->class, $id);
+        return $this->make($record);
+    }
+    
+    public function readByFilter(array $parameters) {
+        $records = $this->store->readByParameters($this->class, $parameters);
+        return $this->makeMultiple($records);
+    }
+    
+    public function readByConnectedItems() {
         
-        $connectedCore = $this->retrieveCore($connectedItem);
-        $connectedClass = get_class($connectedItem);
-        $connectedRecord = $connectedCore->getRecord();
-        $this->store->readByConnectedItem($connectedClass, $connectedRecord);
+        $connectedItems = func_get_args();
+        
+        $connectedCores = array();
+        foreach ($connectedItems as $connectedItem) {
+            $connectedCores[] = $this->retrieveCore($connectedItem);
+        }
+        
+        $records = array();
+        foreach ($connectedCores as $connectedCore) {
+            $records[] = $connectedCore->getRecord();
+        }
+        
+        return $this->makeMultiple($records);
         
     }
     
     public function update($item) {
         $core = $this->cores[spl_object_hash($item)];
-        $this->store->update($this->class, $core->getRecord());
+        $record = $core->getRecord();
+        if (!$core->idIsSet()) {
+            $this->store->create($this->class, $record);
+        } else {
+            $this->store->update($this->class, $record);
+        }
     }
     
     public function delete($item) {
@@ -204,12 +321,24 @@ class DddCompact_Collection {
         unset($item);
     }
     
+    private function makeMultiple(array $records) {
+        
+        $items = array();
+        
+        foreach ($records as $record) {
+            
+            $items[] = $this->make($record);
+            
+        }
+        
+        return $items;
+        
+    }
+    
     private function make(array $record) {
         
-        require_once($this->pathToDirectory.'/'.$this->class.'.php');
-        
-        $core = new DddCompact_Core($this->pathToDirectory, $this->store, $this->service);
-        $item = new $this->class($core);
+        list($item, $core) = $this->instantiator->instantiateDomainItem($class);
+
         $core->setFields($record);
         
         $this->insertCore($item, $core);

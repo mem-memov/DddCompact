@@ -85,7 +85,7 @@ class EducationStore implements DddCompact_Store_Interface {
             
             foreach ($data as $method => $result) {
                 
-                $this->readAccessObjects[$class]
+                //$this->readAccessObjects[$class]
                         
             }
             
