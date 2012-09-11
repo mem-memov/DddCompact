@@ -15,9 +15,7 @@ class EducationStore implements DddCompact_Store_Interface {
         );
         
     }
-    
-    
-    
+
     public function readAll($class) {
 
         return $this->data[$class]['readAll'];

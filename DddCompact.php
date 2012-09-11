@@ -191,6 +191,11 @@ class DddCompact_FantomStore {
     public function __call($method, array $arguments = array()) {
         $fantomClass = get_class($this);
         $this->fileSystem->addMethodToFantomStore($fantomClass, $this->class, $method);
+        
+        $arguments = func_get_args();
+        array_unshift($arguments, $this->class);
+        return call_user_func_array(array($this->store, "readAll"), $arguments);
+        
     }
     
 }
@@ -442,7 +447,7 @@ class DddCompact_Collection {
     }
     
     private function makeMultiple(array $records) {
-        
+
         $items = array();
         
         foreach ($records as $record) {
