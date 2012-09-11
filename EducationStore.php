@@ -7,7 +7,7 @@ class EducationStore implements DddCompact_Store_Interface {
 
         $this->data = array(
             'Teacher' => array(
-                'read' => array(
+                'readAll' => array(
                     array('firstName' => 'Иван', 'lastName' => 'Иванов'),
                     array('firstName' => 'Пётр', 'lastName' => 'Петров')
                 )
@@ -16,9 +16,11 @@ class EducationStore implements DddCompact_Store_Interface {
         
     }
     
-    public function read($class, $method) {
-        
-        return $this->data[$class][$method];
+    
+    
+    public function readAll($class) {
+
+        return $this->data[$class]['readAll'];
         
     }
     

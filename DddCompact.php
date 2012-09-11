@@ -20,40 +20,106 @@ class DddCompact_Application {
 class DddCompact_FileSystem {
     
     private $pathToDomainDirectory;
+
+    private $servicePath;
+    private $storePath;
+    
+    private $classPaths;
+    
+    private $mark;
     
     public function __construct($pathToDomainDirectory) {
+        
         $this->pathToDomainDirectory = $pathToDomainDirectory;
-        $this->secureFantomDirectories();
+        $this->fantomDomain = basename($this->pathToDomainDirectory).'_'.md5($this->pathToDomainDirectory);
+        
+        list($this->servicePath, $this->storePath) = $this->secureFantomDirectories();
+        
+        $this->classPaths = array();
+        
+        $this->mark = '/*mark*/';
+        
     }
     
     public function loadDomainClass($class) {
         
-        require_once($this->pathToDomainDirectory.'/'.$class.'.php');
+        $path = $this->pathToDomainDirectory.'/'.$class.'.php';
+        
+        require_once($path);
+        
+    }
+    
+    public function loadStoreClass($class) {
+        
+        $fantomClass = 'DddCompact_Fantom_'.$this->fantomDomain.'_Store_'.$class;
+        
+        $path = $this->storePath.'/'.$class.'.php';
+        if (!is_readable($path)) {
+            file_put_contents($path, '<?php class '.$fantomClass.' extends DddCompact_FantomStore {'."\n".$this->mark."\n".'}');
+        }
+        if (!class_exists($fantomClass)) {
+            $this->classPaths[$fantomClass] = $path;
+        }
+        require_once($path);
+        
+        
+        return $fantomClass;
+        
+    }
+    
+    public function addMethodToFantomStore($fantomClass, $class, $method) {
+        
+        if (!isset($doneWork)) {
+            static $doneWork = array();
+        }
+
+        if (array_key_exists($fantomClass, $doneWork) && array_key_exists($method, $doneWork[$fantomClass])) {
+            return;
+        }
+        
+        $fantomMethodText = "\n\n";
+        $fantomMethodText .= '    public function '.$method.'() {'."\n";
+        $fantomMethodText .= '        $arguments = func_get_args();'."\n";
+        $fantomMethodText .= '        array_unshift($arguments, "'.$class.'");'."\n";
+        $fantomMethodText .= '        return call_user_func_array(array($this->store, "'.$method.'"), $arguments);'."\n";
+        $fantomMethodText .= '    }'."\n";
+        $fantomMethodText .= "\n";
+        
+        $path = $this->classPaths[$fantomClass];
+        $fantomClassText = file_get_contents($path);
+        $fantomClassText = str_replace($this->mark, $fantomMethodText.$this->mark, $fantomClassText);
+        file_put_contents($path, $fantomClassText);
+        
+        $doneWork[$fantomClass][$method] = true;
         
     }
     
     private function secureFantomDirectories() {
         
-        $applicationPath = __DIR__.'/fantom';
-        if (!is_readable($applicationPath)) {
-            mkdir($applicationPath);
+        $applicationPath = __DIR__;
+        
+        $fantomPath = $applicationPath.'/Fantom';
+        if (!is_readable($fantomPath)) {
+            mkdir($fantomPath);
         }
 
-        $domainPath = $applicationPath.'/'.basename($this->pathToDomainDirectory).'_'.md5($this->pathToDomainDirectory);
+        $domainPath = $fantomPath.'/'.$this->fantomDomain;
         if (!is_readable($domainPath)) {
             mkdir($domainPath);
         }
         
-        $servicePath = $domainPath.'/service';
+        $servicePath = $domainPath.'/Service';
         if (!is_readable($servicePath)) {
             mkdir($servicePath);
         }
 
-        $storePath = $domainPath.'/store';
+        $storePath = $domainPath.'/Store';
         if (!is_readable($storePath)) {
             mkdir($storePath);
         }
 
+        return array($servicePath, $storePath);
+        
     }
     
 }
@@ -84,6 +150,13 @@ class DddCompact_Instantiator {
         
     }
     
+    public function instantiateStore($class) {
+
+        $fantomClass = $this->fileSystem->loadStoreClass($class);
+        $store = new $fantomClass($class, $this->fileSystem, $this->store);
+        return $store;
+        
+    }
 }
 interface DddCompact_Store_Interface {
     /*public function create($class, &$record);
@@ -95,6 +168,30 @@ interface DddCompact_Service_Interface {
     
 }
 class DddCompact_Exception extends Exception {
+    
+}
+class DddCompact_FantomStore {
+    
+    private $class;
+    private $fileSystem;
+    protected $store;
+    
+    public function __construct(
+        $class,
+        DddCompact_FileSystem $fileSystem,
+        DddCompact_Store_Interface $store
+    ) {
+        
+        $this->class = $class;
+        $this->fileSystem = $fileSystem;
+        $this->store = $store;
+        
+    }
+    
+    public function __call($method, array $arguments = array()) {
+        $fantomClass = get_class($this);
+        $this->fileSystem->addMethodToFantomStore($fantomClass, $this->class, $method);
+    }
     
 }
 class DddCompact_Domain {
@@ -223,7 +320,8 @@ class DddCompact_Core {
 
         $this->collectionNames[] = $name;
         $this->collectionInstances[$name] = new DddCompact_Collection(
-            $class, 
+            $class,
+            $this->instantiator->instantiateStore($class),
             $this->instantiator
         );
         $this->$name = $this->collectionInstances[$name];
@@ -244,25 +342,46 @@ class DddCompact_Core {
         
     }
     
+    public function findById(array $cores = array()) {
+
+        $isFound = false;
+        
+        foreach ($cores as $core) {
+            $idFieldName = $this->idFieldName;
+            if ($this->$idFieldName === $core->$idFieldName) {
+                $isFound = true;
+                break;
+            }
+            
+        }
+        
+        if ($isFound) {
+            return $core;
+        } else {
+            return null;
+        }
+        
+        
+    }
 }
 class DddCompact_Collection {
 
     private $class;
+    private $store;
     private $instantiator;
-    
-    private static $cores;
-    private static $items;
+
+    private static $cores = array();
+    private static $items = array();
 
     public function __construct(
         $class,
+        DddCompact_FantomStore $store,
         DddCompact_Instantiator $instantiator
     ) {
 
         $this->class = $class;
+        $this->store = $store;
         $this->instantiator = $instantiator;
-        
-        $this->cores = array();
-        $this->items = array();
         
     }
     
@@ -273,16 +392,17 @@ class DddCompact_Collection {
     }
     
     public function readAll() {
-        $records = $this->store->readAll($this->class);
+        $records = $this->store->readAll();
+        return $this->makeMultiple($records);
     }
     
     public function readById($id) {
-        $record = $this->store->readById($this->class, $id);
+        $record = $this->store->readById($id);
         return $this->make($record);
     }
     
     public function readByFilter(array $parameters) {
-        $records = $this->store->readByParameters($this->class, $parameters);
+        $records = $this->store->readByParameters($parameters);
         return $this->makeMultiple($records);
     }
     
@@ -308,15 +428,15 @@ class DddCompact_Collection {
         $core = $this->cores[spl_object_hash($item)];
         $record = $core->getRecord();
         if (!$core->idIsSet()) {
-            $this->store->create($this->class, $record);
+            $this->store->create($record);
         } else {
-            $this->store->update($this->class, $record);
+            $this->store->update($record);
         }
     }
     
     public function delete($item) {
         $core = $this->cores[spl_object_hash($item)];
-        $this->store->delete($this->class, $core->getRecord());
+        $this->store->delete($core->getRecord());
         unset($this->cores[spl_object_hash($item)]);
         unset($item);
     }
@@ -337,14 +457,27 @@ class DddCompact_Collection {
     
     private function make(array $record) {
         
-        list($item, $core) = $this->instantiator->instantiateDomainItem($class);
-
-        $core->setFields($record);
+        list($item, $core) = $this->instantiator->instantiateDomainItem($this->class);
         
-        $this->insertCore($item, $core);
-        $this->insertItem($core, $item);
+        $existingCore = $core->findById(self::$cores);
 
-        return $item;
+        if (!is_null($existingCore)) {
+            
+            $existingCore->setFields($record);
+            
+            return $this->retrieveItem($existingCore);
+
+        } else {
+            
+            $core->setFields($record);
+
+            $this->insertCore($item, $core);
+            $this->insertItem($core, $item);
+            
+            return $item;
+            
+        }
+
     }
     
     private function insertCore($item, $core) {

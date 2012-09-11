@@ -12,7 +12,7 @@ class School {
     }
     
     public function appear() {
-        return $this->core->teacherCollection->read('All');
+        return $this->core->teacherCollection->readAll();
         return $this->core->teacherCollection;
         return $this->core->name;
     }
