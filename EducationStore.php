@@ -1,11 +1,11 @@
 <?php
-class EducationStore implements DddCompact_Store_Interface {
+class EducationStore extends DddCompact_StoreProvider {
 
-    private $data;
+    private $store;
     
     public function __construct() {
 
-        $this->data = array(
+        $this->store = array(
             'Teacher' => array(
                 'readAll' => array(
                     array('id' => 1, 'firstName' => 'Иван', 'lastName' => 'Иванов'),
@@ -13,12 +13,6 @@ class EducationStore implements DddCompact_Store_Interface {
                 )
             )
         );
-        
-    }
-
-    public function readAll($class) {
-
-        return $this->data[$class]['readAll'];
         
     }
  

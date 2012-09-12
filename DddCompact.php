@@ -20,132 +20,42 @@ class DddCompact_Application {
 class DddCompact_FileSystem {
     
     private $pathToDomainDirectory;
-
-    private $servicePath;
-    private $storePath;
-    
-    private $classPaths;
-    
-    private $mark;
     
     public function __construct($pathToDomainDirectory) {
         
         $this->pathToDomainDirectory = $pathToDomainDirectory;
-        $this->fantomDomain = basename($this->pathToDomainDirectory).'_'.md5($this->pathToDomainDirectory);
-        
-        list($this->servicePath, $this->storePath) = $this->secureFantomDirectories();
-        
-        $this->classPaths = array();
-        
-        $this->mark = '/*mark*/';
         
     }
     
     public function loadDomainClass($class) {
         
-        $path = $this->pathToDomainDirectory.'/'.$class.'.php';
-        
-        require_once($path);
+        if (!class_exists($class)) {
+            $path = $this->pathToDomainDirectory.'/'.$class.'.php';
+            require_once($path);
+        }
         
     }
-    
-    public function loadStoreClass($class) {
-        
-        $fantomClass = 'DddCompact_Fantom_'.$this->fantomDomain.'_Store_'.$class;
-        
-        $path = $this->storePath.'/'.$class.'.php';
-        if (!is_readable($path)) {
-            file_put_contents($path, '<?php class '.$fantomClass.' extends DddCompact_FantomStore {'."\n".$this->mark."\n".'}');
-        }
-        if (!class_exists($fantomClass)) {
-            $this->classPaths[$fantomClass] = $path;
-        }
-        require_once($path);
-        
-        
-        return $fantomClass;
-        
-    }
-    
-    public function addMethodToFantomStore($fantomClass, $class, $method, $arguments) {
-        
-        if (!isset($doneWork)) {
-            static $doneWork = array();
-        }
 
-        if (array_key_exists($fantomClass, $doneWork) && array_key_exists($method, $doneWork[$fantomClass])) {
-            return;
-        }
-        
-        $argumentNames = array();
-        foreach ($arguments as $index => $value) {
-            $argumentNames[] = 'arg'.$index;
-        }
-        $argumentString = implode(', ', $argumentNames);
-        
-        $fantomMethodText = "\n\n";
-        $fantomMethodText .= '    public function '.$method.'('.$argumentString.') {'."\n";
-        $fantomMethodText .= '        return $this->store->'.$method.'("'.$class.'"'.($argumentString == '' ? '' : ', ').$argumentString.');'."\n";
-        $fantomMethodText .= '    }'."\n";
-        $fantomMethodText .= "\n";
-        
-        $path = $this->classPaths[$fantomClass];
-        $fantomClassText = file_get_contents($path);
-        $fantomClassText = str_replace($this->mark, $fantomMethodText.$this->mark, $fantomClassText);
-        file_put_contents($path, $fantomClassText);
-        
-        $doneWork[$fantomClass][$method] = true;
-        
-    }
-    
-    private function secureFantomDirectories() {
-        
-        $applicationPath = __DIR__;
-        
-        $fantomPath = $applicationPath.'/Fantom';
-        if (!is_readable($fantomPath)) {
-            mkdir($fantomPath);
-        }
-
-        $domainPath = $fantomPath.'/'.$this->fantomDomain;
-        if (!is_readable($domainPath)) {
-            mkdir($domainPath);
-        }
-        
-        $servicePath = $domainPath.'/Service';
-        if (!is_readable($servicePath)) {
-            mkdir($servicePath);
-        }
-
-        $storePath = $domainPath.'/Store';
-        if (!is_readable($storePath)) {
-            mkdir($storePath);
-        }
-
-        return array($servicePath, $storePath);
-        
-    }
-    
 }
 class DddCompact_Instantiator {
     
     private $fileSystem;
-    private $store;
-    private $service;
+    private $storeProvider;
+    private $serviceProvider;
     
     public function __construct(
         DddCompact_FileSystem $fileSystem,
-        DddCompact_Store_Interface $store = null, 
-        DddCompact_Service_Interface $service = null
+        DddCompact_StoreProvider $storeProvider = null, 
+        DddCompact_ServiceProvider $serviceProvider = null
     ) {
         
         $this->fileSystem = $fileSystem;
-        $this->store = $store;
-        $this->service = $service;
+        $this->storeProvider = $storeProvider;
+        $this->serviceProvider = $serviceProvider;
         
     }
     
-    public function instantiateDomainItem($class) {
+    public function instantiateItem($class) {
         
         $this->fileSystem->loadDomainClass($class);
         $core = new DddCompact_Core($class, $this);
@@ -156,53 +66,51 @@ class DddCompact_Instantiator {
     
     public function instantiateStore($class) {
 
-        $fantomClass = $this->fileSystem->loadStoreClass($class);
-        $store = new $fantomClass($class, $this->fileSystem, $this->store);
+        $store = $this->storeProvider->provide($class);
+
         return $store;
         
     }
 }
-interface DddCompact_Store_Interface {
-    /*public function create($class, &$record);
-    public function read();
-    public function update($class, $record);
-    public function delete($class, $record);*/
+class DddCompact_Store_Interface {
+    
 }
-interface DddCompact_Service_Interface {
+class DddCompact_StoreProvider {
+
+    protected $mockData;
+    
+    public function provide($class) {
+
+        if (isset($this->mockData[$class])) {
+            return new DddCompact_MockStore($this->mockData[$class]);
+        } else {
+            return $this->$class();
+        }
+
+    }
+    
+}
+class DddCompact_MockStore implements DddCompact_Store_Interface {
+    
+    private $data;
+            
+    public function __construct($data) {
+        
+        $this->data = $data;
+        
+    }
+    
+    public function __call($method, $arguments) {
+        
+        return $this->data[$method];
+        
+    }
+    
+}
+class DddCompact_ServiceProvider {
     
 }
 class DddCompact_Exception extends Exception {
-    
-}
-class DddCompact_FantomStore {
-    
-    private $class;
-    private $fileSystem;
-    protected $store;
-    
-    public function __construct(
-        $class,
-        DddCompact_FileSystem $fileSystem,
-        DddCompact_Store_Interface $store
-    ) {
-        
-        $this->class = $class;
-        $this->fileSystem = $fileSystem;
-        $this->store = $store;
-        
-    }
-    
-    public function __call($method, array $arguments = array()) {
-        $fantomClass = get_class($this);
-        $this->fileSystem->addMethodToFantomStore($fantomClass, $this->class, $method, $arguments);
-        
-        array_unshift($arguments, $this->class);
-        return call_user_func_array(array($this->store, $method), $arguments);
-        
-    }
-    
-}
-class DddCompact_FantomService {
     
 }
 class DddCompact_Domain {
@@ -225,9 +133,6 @@ class DddCompact_Domain {
         
     }
 
-}
-class DddCompact_ServiceManager {
-    
 }
 class DddCompact_Core {
 
