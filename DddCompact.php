@@ -67,7 +67,7 @@ class DddCompact_FileSystem {
         
     }
     
-    public function addMethodToFantomStore($fantomClass, $class, $method) {
+    public function addMethodToFantomStore($fantomClass, $class, $method, $arguments) {
         
         if (!isset($doneWork)) {
             static $doneWork = array();
@@ -77,11 +77,15 @@ class DddCompact_FileSystem {
             return;
         }
         
+        $argumentNames = array();
+        foreach ($arguments as $index => $value) {
+            $argumentNames[] = 'arg'.$index;
+        }
+        $argumentString = implode(', ', $argumentNames);
+        
         $fantomMethodText = "\n\n";
-        $fantomMethodText .= '    public function '.$method.'() {'."\n";
-        $fantomMethodText .= '        $arguments = func_get_args();'."\n";
-        $fantomMethodText .= '        array_unshift($arguments, "'.$class.'");'."\n";
-        $fantomMethodText .= '        return call_user_func_array(array($this->store, "'.$method.'"), $arguments);'."\n";
+        $fantomMethodText .= '    public function '.$method.'('.$argumentString.') {'."\n";
+        $fantomMethodText .= '        return $this->store->'.$method.'("'.$class.'"'.($argumentString == '' ? '' : ', ').$argumentString.');'."\n";
         $fantomMethodText .= '    }'."\n";
         $fantomMethodText .= "\n";
         
@@ -190,13 +194,15 @@ class DddCompact_FantomStore {
     
     public function __call($method, array $arguments = array()) {
         $fantomClass = get_class($this);
-        $this->fileSystem->addMethodToFantomStore($fantomClass, $this->class, $method);
+        $this->fileSystem->addMethodToFantomStore($fantomClass, $this->class, $method, $arguments);
         
-        $arguments = func_get_args();
         array_unshift($arguments, $this->class);
-        return call_user_func_array(array($this->store, "readAll"), $arguments);
+        return call_user_func_array(array($this->store, $method), $arguments);
         
     }
+    
+}
+class DddCompact_FantomService {
     
 }
 class DddCompact_Domain {

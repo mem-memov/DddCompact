@@ -2,9 +2,7 @@
 
 
     public function readAll() {
-        $arguments = func_get_args();
-        array_unshift($arguments, "Teacher");
-        return call_user_func_array(array($this->store, "readAll"), $arguments);
+        return $this->store->readAll("Teacher");
     }
 
 /*mark*/
