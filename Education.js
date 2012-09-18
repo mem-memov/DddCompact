@@ -9,11 +9,11 @@ Education.School = function(core) {
 
         core.isIn(school);
 
-		core.defineCollection('teacherCollection', 'Teacher');
+        core.defineCollection('teacherCollection', 'Teacher');
 
         school.publicMembers = {
             getTeachers: school.getTeachers,
-			looseTeacher: school.looseTeacher
+            looseTeacher: school.looseTeacher
         };
 
         return school.publicMembers;
@@ -27,10 +27,10 @@ Education.School = function(core) {
         return teachers;
     };
 
-	school.looseTeacher = function(teacher) {
-		school.teacherCollection.deleteItem(teacher);
-	}
-	
+    school.looseTeacher = function(teacher) {
+        school.teacherCollection.deleteItem(teacher);
+    }
+    
     return school.init(core);
 
 };
@@ -42,22 +42,22 @@ Education.Teacher = function(core) {
 
     teacher.init = function(core) {
 
-		core.isIn(teacher);
+        core.isIn(teacher);
         core.defineIdField('id');
         core.defineField('firstName');
         core.defineRequiredField('lastName');
 
         teacher.publicMembers = {
-			teach: teacher.teach
+            teach: teacher.teach
         };
 
         return teacher.publicMembers;
 
     };
-	
-	teacher.teach = function() {
-	
-	};
+    
+    teacher.teach = function() {
+    
+    };
 
 
     return teacher.init(core);
