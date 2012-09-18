@@ -7,12 +7,13 @@ Education.School = function(core) {
 
     school.init = function(core) {
 
-        school.core = core;
+        core.isIn(school);
 
-        school.core.defineCollection('teacherCollection', 'Teacher');
+		core.defineCollection('teacherCollection', 'Teacher');
 
         school.publicMembers = {
-            getTeachers: school.getTeachers
+            getTeachers: school.getTeachers,
+			looseTeacher: school.looseTeacher
         };
 
         return school.publicMembers;
@@ -20,10 +21,16 @@ Education.School = function(core) {
     };
 
     school.getTeachers = function() {
-        var teacher = school.core.teacherCollection.createItem();
-        return teacher;
+        //var teachers = school.teacherCollection.createItem();
+        //var teachers = school.teacherCollection.readItemUsingId(5);
+        var teachers = school.teacherCollection.readAllItems();
+        return teachers;
     };
 
+	school.looseTeacher = function(teacher) {
+		school.teacherCollection.deleteItem(teacher);
+	}
+	
     return school.init(core);
 
 };
@@ -35,19 +42,22 @@ Education.Teacher = function(core) {
 
     teacher.init = function(core) {
 
-        teacher.core = core;
+		core.isIn(teacher);
+        core.defineIdField('id');
+        core.defineField('firstName');
+        core.defineRequiredField('lastName');
 
-        teacher.core.defineIdField('id');
-        teacher.core.defineField('firstName');
-        teacher.core.defineField('lastName');
-console.log(core);
         teacher.publicMembers = {
-
+			teach: teacher.teach
         };
 
         return teacher.publicMembers;
 
     };
+	
+	teacher.teach = function() {
+	
+	};
 
 
     return teacher.init(core);

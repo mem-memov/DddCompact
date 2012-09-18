@@ -1,7 +1,14 @@
 var dddCompact = new DddCompact({
-    namespace: this
+    Education: this.Education,
+	Persistence: this.Persistence
 });
-var domain = dddCompact.makeDomain('Education');
-var school = domain.makeItem('School');
+
+var school = dddCompact.makeItem("Education", "School", {});
+
 var teachers = school.getTeachers();
-//console.log(teachers);
+
+school.looseTeacher(teachers[0]);
+
+var teachers = school.getTeachers();
+
+console.log(teachers);
