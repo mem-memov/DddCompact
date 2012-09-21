@@ -58,6 +58,7 @@ Education.Teacher = function(core) {
         core.defineIdField('id');
         core.defineField('firstName');
         core.defineRequiredField('lastName');
+        core.defineUtilities();
 
         teacher.publicMembers = {
             teach: teacher.teach
@@ -68,7 +69,7 @@ Education.Teacher = function(core) {
     };
     
     teacher.teach = function() {
-        
+console.log(teacher);
         console.log('I am ' + teacher.firstName + ' ' + teacher.lastName);
         
     };
