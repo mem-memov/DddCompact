@@ -5,10 +5,11 @@ var dddCompact = new DddCompact({
 
 var school = dddCompact.makeItem("Education", "School", {});
 
-var teachers = school.getTeachers();
-
-school.looseTeacher(teachers[0]);
+school.enrollTeacher('Sergei', 'Sobakin');
 
 var teachers = school.getTeachers();
 
-console.log(teachers);
+for (i in teachers) {
+    teachers[i].teach();
+}
+

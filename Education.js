@@ -13,7 +13,8 @@ Education.School = function(core) {
 
         school.publicMembers = {
             getTeachers: school.getTeachers,
-            looseTeacher: school.looseTeacher
+            looseTeacher: school.looseTeacher,
+            enrollTeacher: school.enrollTeacher
         };
 
         return school.publicMembers;
@@ -29,6 +30,17 @@ Education.School = function(core) {
 
     school.looseTeacher = function(teacher) {
         school.teacherCollection.deleteItem(teacher);
+    }
+    
+    school.enrollTeacher = function(firstName, lastName) {
+        
+        var newTeacher = school.teacherCollection.createItem({
+            firstName: firstName,
+            lastName: lastName
+        });
+        
+        school.teacherCollection.updateItem(newTeacher);
+        
     }
     
     return school.init(core);
@@ -56,9 +68,10 @@ Education.Teacher = function(core) {
     };
     
     teacher.teach = function() {
-    
+        
+        console.log('I am ' + teacher.firstName + ' ' + teacher.lastName);
+        
     };
-
 
     return teacher.init(core);
 
