@@ -1,6 +1,6 @@
 var dddCompact = new DddCompact({
-    Education: this.Education,
-	Persistence: this.Persistence
+    Education: 'Education.js',
+    Persistence: 'Persistence.js'
 });
 
 var school = dddCompact.makeItem("Education", "School", {});
