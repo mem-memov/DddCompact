@@ -1,4 +1,5 @@
-Education = {};
+function(Education) {
+
 Education.School = function(core) {
 
     var school = this;
@@ -75,5 +76,8 @@ console.log(teacher);
     };
 
     return teacher.init(core);
+
+}
+
 
 }
