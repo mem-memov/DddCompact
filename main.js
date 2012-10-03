@@ -1,11 +1,17 @@
-var lecturer = dddCompact.makeItem("Blackboard", "Lecturer", {});
-console.log(lecturer);
 
-lecturer.useBoard();
 
-var board = dddCompact.makeItem("Blackboard", "Board", {});
+window.onload=function() {
+    
+    
+    var lecturer = dddCompact.makeItem("Blackboard", "Lecturer", {});
 
-console.log(board);
+
+    lecturer.useBoard(document.getElementsByTagName('BODY')[0]);
+
+
+
+};
+
 
 
 /*

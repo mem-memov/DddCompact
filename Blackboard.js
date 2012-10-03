@@ -18,28 +18,33 @@ Blackboard.Lecturer = function(core) {
     }
     
     lecturer.useBoard = function(domElement) {
-        var board = lecturer.boardCollection.createItem();
-        console.log(board);
+        var board = lecturer.boardCollection.createItem({
+            domElement: domElement
+        });
+        
     }
     
     return lecturer.init(core);
     
 }
 
-Blackboard.Board = function() {
+Blackboard.Board = function(core, boardOptions) {
     
-    var board = {};
+    var board = {
+        domElement: null
+    };
     
-    board.init = function() {
+    board.init = function(core, boardOptions) {
         
-        
+        board.domElement = boardOptions.domElement;
+        board.domElement.style.backgroundColor = "black";
         return {
             
         };
         
     }
     
-    return board.init();
+    return board.init(core, boardOptions);
     
 }
 
