@@ -1,5 +1,6 @@
 var dddCompact = new DddCompact({
-    Education: 'Education.js',
+    Blackboard: 'Blackboard.js',
+    Division: 'Division.js',
     Persistence: 'Persistence.js'
 }, {
     setRecordId: function(data, eventBus) {
