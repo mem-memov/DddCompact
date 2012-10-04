@@ -6,7 +6,7 @@ window.onload=function() {
     var lecturer = dddCompact.makeItem("Blackboard", "Lecturer", {});
 
 
-    lecturer.useBoard(document.getElementsByTagName('BODY')[0]);
+    lecturer.useBoard(document.getElementById('panel'));
 
 
 

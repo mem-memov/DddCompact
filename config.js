@@ -23,5 +23,17 @@ var dddCompact = new DddCompact({
         var $ = eventBus.makeSingleton("Library", "JQuery");
         $(data.domElement).css(data.style);
         
+    },
+    bindEventHandlerToDomElement: function(data, eventBus) {
+        //console.log(data);
+        
+        var $ = eventBus.makeSingleton("Library", "JQuery");
+        switch (data.event) {
+            case "onmousemove":
+                $(data.domElement).mousemove(function(e) { 
+                    data.handler(e.clientX, e.clientY);
+                });
+                break;
+        }
     }
 });
