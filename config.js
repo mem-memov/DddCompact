@@ -1,6 +1,6 @@
 var dddCompact = new DddCompact({
     Blackboard: 'Blackboard.js',
-    Division: 'Division.js',
+    Library: 'Library.js',
     Persistence: 'Persistence.js'
 }, {
     setRecordId: function(data, eventBus) {
@@ -18,5 +18,10 @@ var dddCompact = new DddCompact({
     deleteRecord: function(data, eventBus) {
         var persistence = eventBus.makeSingleton("Persistence", "Persistence");
         return persistence.deleteRecord(data.domainName, data.itemClass, data.idFieldName, data.idFieldValue);
+    },
+    setDomElementStyle: function(data, eventBus) {
+        var $ = eventBus.makeSingleton("Library", "JQuery");
+        $(data.domElement).css(data.style);
+        
     }
 });

@@ -4,7 +4,7 @@ function(Blackboard) {
 
 Blackboard.Lecturer = function(core) {
     
-    var lecturer = {};
+    var lecturer = this;
 
     lecturer.init = function(core) {
         
@@ -18,6 +18,7 @@ Blackboard.Lecturer = function(core) {
     }
     
     lecturer.useBoard = function(domElement) {
+        
         var board = lecturer.boardCollection.createItem({
             domElement: domElement
         });
@@ -28,23 +29,31 @@ Blackboard.Lecturer = function(core) {
     
 }
 
-Blackboard.Board = function(core, boardOptions) {
+Blackboard.Board = function(core) {
+
+    var board = this;
     
-    var board = {
-        domElement: null
-    };
-    
-    board.init = function(core, boardOptions) {
+    board.init = function(core) {
         
-        board.domElement = boardOptions.domElement;
+        core.isIn(board);
+        core.defineRequiredField('domElement');
+        core.defineEvents('setDomElementStyle');
+
         board.domElement.style.backgroundColor = "black";
+        board.setDomElementStyle({
+            domElement: board.domElement,
+            style: {
+                "background-color": "blue"
+            }
+        });
+        
         return {
             
         };
         
     }
     
-    return board.init(core, boardOptions);
+    return board.init(core);
     
 }
 
