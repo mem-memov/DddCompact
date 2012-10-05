@@ -1,4 +1,4 @@
-
+//console.log = function(){};
 
 window.onload=function() {
     

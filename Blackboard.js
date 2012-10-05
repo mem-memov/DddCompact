@@ -11,6 +11,7 @@ Blackboard.Lecturer = function(core) {
         core.isIn(lecturer);
         core.defineCollection('boardCollection', 'Board');
         core.defineMessages('TouchBoard');
+        core.defineEvents('bindEventHandlerToDomElement');
         
         return {
             useBoard: lecturer.useBoard
@@ -22,6 +23,24 @@ Blackboard.Lecturer = function(core) {
         
         var board = lecturer.boardCollection.createItem({
             domElement: domElement
+        });
+        
+        lecturer.bindEventHandlerToDomElement({
+            domElement: domElement,
+            event: "onmousedown",
+            handler: function(x, y) { 
+                
+                board.showPath(x, y);
+
+            }
+        });
+        
+        lecturer.bindEventHandlerToDomElement({
+            domElement: domElement,
+            event: "onmouseup",
+            handler: function(x, y) { 
+                board.stopReacting(x, y);
+            }
         });
         
         //lecturer.touchBoard();
@@ -42,9 +61,13 @@ Blackboard.Board = function(core) {
         
         core.isIn(board);
         core.defineRequiredField('domElement');
-        core.defineEvents('setDomElementStyle', 'bindEventHandlerToDomElement');
-
-        
+        core.defineField('currentPath');
+        core.defineCollection('pathCollection', 'Path');
+        core.defineEvents(
+            'setDomElementStyle', 
+            'bindEventHandlerToDomElement',
+            'createSvgElement'
+        );
 
         board.setDomElementStyle({
             domElement: board.domElement,
@@ -52,31 +75,46 @@ Blackboard.Board = function(core) {
                 "background-color": "blue"
             }
         });
+     
+        return {
+            contact: board.contact,
+            showPath: board.showPath,
+            stopReacting: board.stopReacting
+        };
+        
+    };
+    
+    board.showPath = function(x, y) {
+      
+        board.currentPath = board.pathCollection.createItem({
+            x: x,
+            y: y,
+            svgContainer: board.domElement
+        });
+      
+        board.bindEventHandlerToDomElement({
+            domElement: board.domElement,
+            event: "onmousemove",
+            handler: function(x, y) {
+ 
+		board.currentPath.addDot(x, y);
+                
+            }
+        });
+        
+    };
+    
+    board.stopReacting = function(x, y) {
         
         board.bindEventHandlerToDomElement({
             domElement: board.domElement,
             event: "onmousemove",
             handler: function(x, y) {
+ 
+		console.log('stopped');
                 
-		//Defining the SVG Namespace
-		var svgNS = "http://www.w3.org/2000/svg";
-		//Creating a Document by Namespace
-		var dot = document.createElementNS(svgNS, "circle");
-
-                
-                
-                //var dot = document.createElement("CIRCLE");
-                dot.setAttribute("cx",x);
-                dot.setAttribute("cy",y);
-                dot.setAttribute("r",1);
-                dot.setAttribute("fill","white");
-                board.domElement.appendChild(dot);
             }
         });
-        
-        return {
-            contact: board.contact
-        };
         
     };
     
@@ -86,6 +124,51 @@ Blackboard.Board = function(core) {
     };
     
     return board.init(core);
+    
+}
+
+Blackboard.Path = function(core) {
+    
+    var path = this;
+    
+    path.init = function(core) {
+        
+        core.isIn(path);
+        core.defineRequiredField('x');
+        core.defineRequiredField('y');
+        core.defineRequiredField('svgContainer');
+        core.defineField('svgPath');
+        core.defineField('command');
+        core.defineEvents(
+            'createSvgElement'
+        );
+            
+        path.command = "M" + path.x + " " + path.y;
+        
+        path.svgPath = path.createSvgElement({
+            type: "path",
+            attributes: {
+                "d": path.command,
+                "stroke": "white",
+                "stroke-width": 1,
+                "fill": "none",
+                "result": null
+            },
+            container: path.svgContainer
+        });
+
+        return {
+            addDot: path.addDot
+        }
+        
+    };
+    
+    path.addDot = function(x, y) {
+        path.command += " L" + x + " " + y;
+        path.svgPath.setAttribute("d", path.command);
+    };
+
+    return path.init(core);
     
 }
 
